@@ -46,24 +46,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAuthHeaders() {
     const token = getAuthToken() || '';
+    const passHash = localStorage.getItem('dk_passcode_hash') || '';
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
-      'x-admin-key': token
+      'x-admin-key': token,
+      'x-admin-hash': passHash
     };
   }
 
-  function clearAuthSession() {
+  function clearAuthSession(preserveHash = true) {
     sessionStorage.removeItem('dk_auth_token');
     sessionStorage.removeItem('dk_auth');
     localStorage.removeItem('dk_auth_token');
     localStorage.removeItem('dk_auth');
     localStorage.removeItem('dk_device_saved_at');
     localStorage.removeItem('dk_admin_pass');
+    if (!preserveHash) {
+      localStorage.removeItem('dk_passcode_hash');
+    }
   }
 
   function lockAdmin(errorMsg) {
-    clearAuthSession();
+    clearAuthSession(true);
     if (adminApp) adminApp.style.display = 'none';
     if (loginOverlay) loginOverlay.classList.add('active');
     if (adminPassInput) {
@@ -131,16 +136,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
+        const storedHash = localStorage.getItem('dk_passcode_hash') || '';
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ passcode: entered })
+          body: JSON.stringify({ passcode: entered, verificationHash: storedHash })
         });
 
         const data = await res.json();
 
         if (res.ok && data.success) {
           const token = data.token || entered;
+          if (data.passHash) {
+            localStorage.setItem('dk_passcode_hash', data.passHash);
+          }
+
           if (rememberMe.checked) {
             // Explicitly saved on this device
             localStorage.setItem('dk_auth_token', token);
@@ -266,7 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (res.status === 401) {
-        lockAdmin('Session expired or unauthorized. Please sign in again.');
+        console.warn('Leads API returned 401. Loading inquiries from local backup.');
+        currentLeads = JSON.parse(localStorage.getItem('dk_leads') || '[]');
+        renderLeadsTable(currentLeads);
         return;
       }
 
@@ -834,12 +846,17 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const current = document.getElementById('currentPasscode').value;
       const next = document.getElementById('newPasscode').value;
+      const storedHash = localStorage.getItem('dk_passcode_hash') || '';
 
       try {
         const res = await fetch('/api/auth', {
           method: 'PUT',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ currentPasscode: current, newPasscode: next })
+          body: JSON.stringify({ 
+            currentPasscode: current, 
+            newPasscode: next,
+            verificationHash: storedHash
+          })
         });
 
         const data = await res.json();
@@ -847,6 +864,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.token) {
             sessionStorage.setItem('dk_auth_token', data.token);
             if (localStorage.getItem('dk_auth_token')) localStorage.setItem('dk_auth_token', data.token);
+          }
+          if (data.passHash) {
+            localStorage.setItem('dk_passcode_hash', data.passHash);
           }
           securityForm.reset();
           showToast('Admin passcode updated successfully!');

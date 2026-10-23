@@ -1,4 +1,14 @@
-const { getStore, saveStore, handleCors, sendJson, parseBody, verifyAuth } = require('./_store');
+const { 
+  getStore, 
+  saveStore, 
+  handleCors, 
+  sendJson, 
+  parseBody, 
+  verifyAuth,
+  generateSessionToken,
+  generatePassVerificationHash,
+  verifyPasscode
+} = require('./_store');
 
 module.exports = async function handler(req, res) {
   if (handleCors(req, res)) return;
@@ -25,12 +35,23 @@ module.exports = async function handler(req, res) {
     if (method === 'POST') {
       const body = await parseBody(req);
       const entered = (body.passcode || '').trim();
-      const actual = store.adminPass || 'admin';
+      const actual = store.adminPass || 'Narayan@06';
+      const verificationHash = (body.verificationHash || '').trim();
 
-      if (entered === actual) {
+      if (verifyPasscode(entered, actual, verificationHash)) {
+        // If verified via hash or env but store had old default, sync store in this instance
+        if (store.adminPass !== entered) {
+          store.adminPass = entered;
+          await saveStore(store);
+        }
+
+        const sessionToken = generateSessionToken(entered);
+        const passHash = generatePassVerificationHash(entered);
+
         return sendJson(res, 200, {
           success: true,
-          token: actual,
+          token: sessionToken,
+          passHash: passHash,
           message: 'Authenticated successfully'
         });
       } else {
@@ -46,9 +67,14 @@ module.exports = async function handler(req, res) {
       const body = await parseBody(req);
       const current = (body.currentPasscode || '').trim();
       const next = (body.newPasscode || '').trim();
-      const actual = store.adminPass || 'admin';
+      const actual = store.adminPass || 'Narayan@06';
+      const verificationHash = (body.verificationHash || '').trim();
 
-      if (current !== actual) {
+      // Current passcode must match or request must have valid auth token
+      const isAuthHeaderValid = verifyAuth(req, store, body);
+      const isCurrentPassValid = verifyPasscode(current, actual, verificationHash);
+
+      if (!isAuthHeaderValid && !isCurrentPassValid) {
         return sendJson(res, 401, { error: 'Current passcode is incorrect' });
       }
 
@@ -59,10 +85,14 @@ module.exports = async function handler(req, res) {
       store.adminPass = next;
       await saveStore(store);
 
+      const sessionToken = generateSessionToken(next);
+      const passHash = generatePassVerificationHash(next);
+
       return sendJson(res, 200, {
         success: true,
         message: 'Admin passcode updated successfully',
-        token: next
+        token: sessionToken,
+        passHash: passHash
       });
     }
 

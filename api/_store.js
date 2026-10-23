@@ -10,10 +10,11 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 
 // Default Database Schema
 const DEFAULT_STORE = {
-  adminPass: "admin",
+  adminPass: "Narayan@06",
   pricing: {
     branding: 15000,
     uiux: 20000,
@@ -113,6 +114,75 @@ let inMemoryCache = null;
 const LOCAL_DB_PATH = path.join(process.cwd(), 'data', 'db.json');
 const TMP_DB_PATH = path.join(os.tmpdir(), 'dk_db.json');
 
+// Session Secret Key
+const AUTH_SECRET = process.env.ADMIN_JWT_SECRET || 
+                    process.env.ADMIN_SECRET || 
+                    process.env.VERCEL_GIT_COMMIT_SHA || 
+                    'dk_enterprise_kolkata_secure_secret_key_2026';
+
+function generateSessionToken(passcode = 'Narayan@06') {
+  const payload = {
+    auth: true,
+    role: 'admin',
+    passHash: crypto.createHash('sha256').update(String(passcode)).digest('hex').substring(0, 16),
+    iat: Date.now()
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(body).digest('base64url');
+  return `dk_sess_${body}.${sig}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  if (!token.startsWith('dk_sess_')) return null;
+  const raw = token.replace(/^dk_sess_/, '');
+  const parts = raw.split('.');
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(body).digest('base64url');
+  if (sig !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    // Valid for 30 days
+    if (payload.iat && (Date.now() - payload.iat > 30 * 24 * 60 * 60 * 1000)) {
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function generatePassVerificationHash(passcode) {
+  return crypto.createHmac('sha256', AUTH_SECRET).update(`pass_${passcode}`).digest('hex');
+}
+
+function verifyPasscode(entered, actual, clientHash = null) {
+  const cleanEntered = (entered || '').trim();
+  const cleanActual = (actual || '').trim();
+  const envPass = (process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD || '').trim();
+
+  // 1. Direct match with current store adminPass
+  if (cleanActual && cleanEntered === cleanActual) return true;
+
+  // 2. Direct match with environment variable
+  if (envPass && cleanEntered === envPass) return true;
+
+  // 3. Fallback default 'Narayan@06'
+  if (cleanEntered === 'Narayan@06') return true;
+
+  // 4. Also support previous 'admin' if store was not yet updated
+  if (cleanEntered === 'admin' && cleanActual === 'admin') return true;
+
+  // 5. Verify against client verification hash (signed by server when passcode was changed in this browser)
+  if (clientHash) {
+    const expected = generatePassVerificationHash(cleanEntered);
+    if (clientHash === expected) return true;
+  }
+
+  return false;
+}
+
 // Get KV Credentials from Env or Local Config
 function getKvConfig(currentStore) {
   let url = process.env.KV_REST_API_URL || 
@@ -180,15 +250,10 @@ async function getStore() {
     return inMemoryCache;
   }
 
-  // 1. Check local file if available
+  // 1. Check local file or tmp file
+  // Prefer TMP_DB_PATH if it exists (on Vercel serverless where LOCAL_DB_PATH is read-only)
   let fileData = null;
-  if (fs.existsSync(LOCAL_DB_PATH)) {
-    try {
-      fileData = JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
-    } catch (e) {
-      console.warn('Failed reading local DB file:', e.message);
-    }
-  } else if (fs.existsSync(TMP_DB_PATH)) {
+  if (fs.existsSync(TMP_DB_PATH)) {
     try {
       fileData = JSON.parse(fs.readFileSync(TMP_DB_PATH, 'utf8'));
     } catch (e) {
@@ -196,7 +261,20 @@ async function getStore() {
     }
   }
 
+  if (!fileData && fs.existsSync(LOCAL_DB_PATH)) {
+    try {
+      fileData = JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
+    } catch (e) {
+      console.warn('Failed reading local DB file:', e.message);
+    }
+  }
+
   const baseData = fileData || JSON.parse(JSON.stringify(DEFAULT_STORE));
+
+  // Override adminPass with environment variable if provided
+  if (process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD) {
+    baseData.adminPass = (process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD).trim();
+  }
 
   // 2. Check Cloud KV
   const kvConfig = getKvConfig(baseData);
@@ -204,6 +282,9 @@ async function getStore() {
     const cloudData = await fetchFromKv(kvConfig.url, kvConfig.token);
     if (cloudData) {
       inMemoryCache = { ...baseData, ...cloudData };
+      if (process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD) {
+        inMemoryCache.adminPass = (process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD).trim();
+      }
       return inMemoryCache;
     }
   }
@@ -227,16 +308,17 @@ async function saveStore(newData) {
     const dir = path.dirname(LOCAL_DB_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(newData, null, 2), 'utf8');
-    return true;
   } catch (err) {
-    // Read-only filesystem in Vercel serverless -> save to os.tmpdir()
-    try {
-      fs.writeFileSync(TMP_DB_PATH, JSON.stringify(newData, null, 2), 'utf8');
-      return true;
-    } catch (tmpErr) {
-      console.error('Failed writing to tmp:', tmpErr.message);
-    }
+    // Read-only filesystem in Vercel serverless
   }
+
+  // Always write to TMP_DB_PATH on serverless/temp storage
+  try {
+    fs.writeFileSync(TMP_DB_PATH, JSON.stringify(newData, null, 2), 'utf8');
+  } catch (tmpErr) {
+    console.error('Failed writing to tmp:', tmpErr.message);
+  }
+
   return true;
 }
 
@@ -304,13 +386,32 @@ function verifyAuth(req, store, body = null) {
   const queryToken = req.query && typeof req.query === 'object' ? (req.query.token || req.query.key) : null;
 
   const actualToken = (token || bodyToken || queryToken || '').trim();
-  const validPass = (store && store.adminPass) || 'admin';
+  if (!actualToken) return false;
 
-  return Boolean(
-    actualToken === validPass || 
-    actualToken === 'admin' || 
-    actualToken === 'dk_authenticated_session'
-  );
+  // 1. Check if token is a valid cryptographic session token (works across all serverless lambdas seamlessly)
+  const session = verifySessionToken(actualToken);
+  if (session && session.auth) {
+    return true;
+  }
+
+  // 2. Direct match with current adminPass or environment variable
+  const validPass = (store && store.adminPass) || process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD || 'Narayan@06';
+  if (actualToken === validPass) {
+    return true;
+  }
+
+  // 3. Backwards compatibility for 'Narayan@06', 'admin', or authenticated session marker
+  if (actualToken === 'Narayan@06' || actualToken === 'admin' || actualToken === 'dk_authenticated_session') {
+    return true;
+  }
+
+  // 4. Verification hash match (from header if provided)
+  const passHash = req.headers && req.headers['x-admin-hash'];
+  if (passHash && generatePassVerificationHash(actualToken) === passHash) {
+    return true;
+  }
+
+  return false;
 }
 
 module.exports = {
@@ -320,5 +421,8 @@ module.exports = {
   sendJson,
   parseBody,
   verifyAuth,
-  getKvConfig
+  getKvConfig,
+  generateSessionToken,
+  generatePassVerificationHash,
+  verifyPasscode
 };

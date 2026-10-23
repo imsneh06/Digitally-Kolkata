@@ -24,7 +24,7 @@
         <div class="form-group">
           <label for="adminPass">Enter Passcode / Master Key</label>
           <div class="input-password-wrapper">
-            <input type="password" id="adminPass" placeholder="Enter password (default: admin)" required autofocus>
+            <input type="password" id="adminPass" placeholder="Enter admin passcode" required autofocus>
             <button type="button" id="togglePassBtn" class="toggle-pass">👁</button>
           </div>
           <span id="loginError" class="error-msg">Incorrect passcode. Try again.</span>
@@ -33,9 +33,6 @@
           <label><input type="checkbox" id="rememberMe"> Remember this device (Stay logged in)</label>
         </div>
         <button type="submit" class="btn-primary w-full">Unlock Dashboard</button>
-        <div class="login-hint">
-          <small>Default Passcode: <code>admin</code> (Can be changed inside settings)</small>
-        </div>
       </form>
     </div>
   </div>
@@ -343,7 +340,7 @@
           <div class="box-header">
             <div>
               <h2>Admin Security & Passcode</h2>
-              <p>Change your private dashboard passcode (PUT /api/auth).</p>
+              <p>Change your private dashboard passcode.</p>
             </div>
           </div>
 
