@@ -32,16 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logoutBtn');
 
   function getAuthToken() {
-    let token = sessionStorage.getItem('dk_auth_token') || localStorage.getItem('dk_auth_token');
-    if (!token && (sessionStorage.getItem('dk_auth') === 'true' || localStorage.getItem('dk_auth') === 'true')) {
-      token = localStorage.getItem('dk_admin_pass') || 'admin';
-      sessionStorage.setItem('dk_auth_token', token);
-    }
-    return token || 'admin';
+    // 1. Check current browser tab session
+    const tabToken = sessionStorage.getItem('dk_auth_token');
+    if (tabToken && tabToken.trim()) return tabToken.trim();
+
+    // 2. Check if this device has a recognized saved session
+    const savedDeviceToken = localStorage.getItem('dk_auth_token');
+    if (savedDeviceToken && savedDeviceToken.trim()) return savedDeviceToken.trim();
+
+    // 3. Device session is NOT saved -> Return null! (Dashboard MUST remain locked)
+    return null;
   }
 
   function getAuthHeaders() {
-    const token = getAuthToken();
+    const token = getAuthToken() || '';
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
@@ -49,15 +53,68 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  function checkSession() {
+  function clearAuthSession() {
+    sessionStorage.removeItem('dk_auth_token');
+    sessionStorage.removeItem('dk_auth');
+    localStorage.removeItem('dk_auth_token');
+    localStorage.removeItem('dk_auth');
+    localStorage.removeItem('dk_device_saved_at');
+    localStorage.removeItem('dk_admin_pass');
+  }
+
+  function lockAdmin(errorMsg) {
+    clearAuthSession();
+    if (adminApp) adminApp.style.display = 'none';
+    if (loginOverlay) loginOverlay.classList.add('active');
+    if (adminPassInput) {
+      adminPassInput.value = '';
+      setTimeout(() => adminPassInput.focus(), 150);
+    }
+    if (loginError) {
+      if (errorMsg) {
+        loginError.textContent = errorMsg;
+        loginError.classList.add('visible');
+      } else {
+        loginError.classList.remove('visible');
+      }
+    }
+  }
+
+  function unlockAdmin() {
+    if (loginOverlay) loginOverlay.classList.remove('active');
+    if (adminApp) adminApp.style.display = 'flex';
+    if (loginError) loginError.classList.remove('visible');
+    loadAllData();
+  }
+
+  async function checkSession() {
     const token = getAuthToken();
-    if (token) {
-      loginOverlay.classList.remove('active');
-      adminApp.style.display = 'flex';
-      loadAllData();
-    } else {
-      loginOverlay.classList.add('active');
-      adminApp.style.display = 'none';
+    if (!token) {
+      // Device session is NOT saved -> Lock dashboard and prompt for login every time!
+      lockAdmin();
+      return;
+    }
+
+    // Verify token with server
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (res.ok) {
+        unlockAdmin();
+      } else {
+        // Token is invalid or passcode was updated
+        lockAdmin('Saved session expired or passcode was changed. Please log in.');
+      }
+    } catch (err) {
+      // Offline fallback only if token was explicitly saved
+      if (localStorage.getItem('dk_auth_token') || sessionStorage.getItem('dk_auth_token')) {
+        unlockAdmin();
+      } else {
+        lockAdmin('Please enter passcode to unlock.');
+      }
     }
   }
 
@@ -66,6 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const entered = adminPassInput.value.trim();
       loginError.classList.remove('visible');
+
+      if (!entered) {
+        loginError.textContent = 'Please enter passcode.';
+        loginError.classList.add('visible');
+        return;
+      }
 
       try {
         const res = await fetch('/api/auth', {
@@ -79,13 +142,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.ok && data.success) {
           const token = data.token || entered;
           if (rememberMe.checked) {
+            // Explicitly saved on this device
             localStorage.setItem('dk_auth_token', token);
+            localStorage.setItem('dk_device_saved_at', new Date().toISOString());
+            sessionStorage.removeItem('dk_auth_token');
           } else {
+            // Temporary tab session only (NOT saved to device)
             sessionStorage.setItem('dk_auth_token', token);
+            localStorage.removeItem('dk_auth_token');
+            localStorage.removeItem('dk_device_saved_at');
           }
-          loginOverlay.classList.remove('active');
-          adminApp.style.display = 'flex';
-          loadAllData();
+
+          unlockAdmin();
           showToast('Welcome back to Digitally Kolkata Control Panel!');
         } else {
           loginError.textContent = data.error || 'Incorrect passcode. Try again.';
@@ -93,17 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
           adminPassInput.focus();
         }
       } catch (err) {
-        // Fallback for offline local dev mode
-        if (entered === (localStorage.getItem('dk_admin_pass') || 'admin')) {
-          sessionStorage.setItem('dk_auth_token', entered);
-          loginOverlay.classList.remove('active');
-          adminApp.style.display = 'flex';
-          loadAllData();
-          showToast('Authenticated in offline fallback mode.');
-        } else {
-          loginError.textContent = 'Connection error. Check network.';
-          loginError.classList.add('visible');
-        }
+        loginError.textContent = 'Connection error. Check network.';
+        loginError.classList.add('visible');
       }
     });
   }
@@ -116,9 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('dk_auth_token');
-      sessionStorage.removeItem('dk_auth_token');
-      window.location.reload();
+      lockAdmin();
+      showToast('Signed out. Device session cleared.');
     });
   }
 
@@ -208,8 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (res.status === 401) {
-        showToast('Session expired. Please sign in again.');
-        logoutBtn.click();
+        lockAdmin('Session expired or unauthorized. Please sign in again.');
         return;
       }
 

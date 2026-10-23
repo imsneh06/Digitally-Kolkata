@@ -7,6 +7,20 @@ module.exports = async function handler(req, res) {
   const method = req.method;
 
   try {
+    // 0. GET: Verify if saved device session token is valid
+    if (method === 'GET') {
+      if (!verifyAuth(req, store)) {
+        return sendJson(res, 401, {
+          authenticated: false,
+          error: 'Device session not recognized or expired'
+        });
+      }
+      return sendJson(res, 200, {
+        authenticated: true,
+        message: 'Device session recognized'
+      });
+    }
+
     // 1. POST: Authenticate Admin
     if (method === 'POST') {
       const body = await parseBody(req);
