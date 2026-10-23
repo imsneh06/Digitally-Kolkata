@@ -424,9 +424,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const getVal = (id, def) => {
         const el = document.getElementById(id);
-        if (!el || !el.value) return def;
-        const v = parseInt(el.value, 10);
-        return isNaN(v) ? def : v;
+        if (!el || el.value === undefined || el.value === null) return def;
+        const val = el.value.trim();
+        if (!val) return def;
+        if (/^\d+$/.test(val.replace(/,/g, ''))) {
+          return parseInt(val.replace(/,/g, ''), 10);
+        }
+        return val;
       };
 
       const payload = {

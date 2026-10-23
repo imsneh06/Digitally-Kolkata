@@ -125,14 +125,51 @@ document.addEventListener('DOMContentLoaded', () => {
           activePricing = { ...activePricing, ...data.pricing };
 
           // Map service values to checkbox inputs
+          const applyServiceRate = (cb, rate) => {
+            if (!cb.dataset.originalText && cb.nextElementSibling) {
+              cb.dataset.originalText = cb.nextElementSibling.textContent;
+            }
+            const orig = cb.dataset.originalText || '';
+            const parentLabel = cb.closest('.check-card');
+            const num = typeof rate === 'number' ? rate : parseFloat(String(rate).replace(/[^0-9.]/g, ''));
+            const isTextStatus = typeof rate === 'string' && (isNaN(num) || rate.toLowerCase().includes('not') || rate.toLowerCase().includes('n/a') || rate.toLowerCase().includes('call'));
+
+            if (isTextStatus || isNaN(num) || num <= 0) {
+              cb.value = '0';
+              cb.disabled = true;
+              cb.checked = false;
+              if (parentLabel) {
+                parentLabel.classList.remove('checked');
+                parentLabel.style.opacity = '0.55';
+                parentLabel.style.cursor = 'not-allowed';
+                parentLabel.title = String(rate || 'Currently not in service');
+              }
+              if (cb.nextElementSibling) {
+                const badge = typeof rate === 'string' && rate.trim() ? rate.trim() : 'N/A';
+                cb.nextElementSibling.textContent = `${orig} (${badge})`;
+              }
+            } else {
+              cb.value = num;
+              cb.disabled = false;
+              if (parentLabel) {
+                parentLabel.style.opacity = '1';
+                parentLabel.style.cursor = 'pointer';
+                parentLabel.title = '';
+              }
+              if (cb.nextElementSibling && orig) {
+                cb.nextElementSibling.textContent = orig;
+              }
+            }
+          };
+
           serviceCheckboxes.forEach(cb => {
-            const labelSpan = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim().toLowerCase() : '';
-            if (labelSpan.includes('web')) cb.value = activePricing.webdev;
-            else if (labelSpan.includes('brand')) cb.value = activePricing.branding;
-            else if (labelSpan.includes('ui/ux') || labelSpan.includes('design')) cb.value = activePricing.uiux;
-            else if (labelSpan.includes('seo') || labelSpan.includes('analytics')) cb.value = activePricing.seo;
-            else if (labelSpan.includes('photo') || labelSpan.includes('shoot')) cb.value = activePricing.photo;
-            else if (labelSpan.includes('social') || labelSpan.includes('marketing')) cb.value = activePricing.social;
+            const labelSpan = (cb.dataset.originalText || (cb.nextElementSibling ? cb.nextElementSibling.textContent : '')).toLowerCase();
+            if (labelSpan.includes('web')) applyServiceRate(cb, activePricing.webdev);
+            else if (labelSpan.includes('brand')) applyServiceRate(cb, activePricing.branding);
+            else if (labelSpan.includes('ui/ux') || labelSpan.includes('design')) applyServiceRate(cb, activePricing.uiux);
+            else if (labelSpan.includes('seo') || labelSpan.includes('analytics')) applyServiceRate(cb, activePricing.seo);
+            else if (labelSpan.includes('photo') || labelSpan.includes('shoot')) applyServiceRate(cb, activePricing.photo);
+            else if (labelSpan.includes('social') || labelSpan.includes('marketing')) applyServiceRate(cb, activePricing.social);
           });
 
           calculateQuote();
@@ -187,71 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function syncPortfolioFromApi() {
-    const portfolioGrid = document.getElementById('portfolioGrid');
-    if (!portfolioGrid) return;
-
-    try {
-      const res = await fetch('/api/portfolio');
-      if (res.ok) {
-        const data = await res.json();
-        const projects = (data.portfolio || []).filter(p => p.active !== false);
-
-        if (projects.length > 0) {
-          portfolioGrid.innerHTML = projects.map(p => {
-            const cat = p.category || 'campaign';
-            const catLabel = p.categoryLabel || cat.toUpperCase();
-            const metric = p.metric || 'Verified Impact';
-            const desc = p.description || '';
-            const title = p.title || 'Client Case Study';
-
-            return `
-              <article class="portfolio-card" data-category="${escapeHtml(cat)}" data-title="${escapeHtml(title)}" data-details="${escapeHtml(desc)}">
-                <div class="portfolio-img-wrap">
-                  <picture>
-                    <source srcset="assets/portfolio/walplast.webp" type="image/webp">
-                    <img src="assets/portfolio/walplast.jpg" alt="${escapeHtml(title)}" class="portfolio-img" width="400" height="240" loading="lazy" decoding="async">
-                  </picture>
-                  <span class="portfolio-tag-badge">${escapeHtml(catLabel)}</span>
-                </div>
-                <div class="portfolio-content">
-                  <h3 class="portfolio-title">${escapeHtml(title)}</h3>
-                  <p class="portfolio-desc">${escapeHtml(desc)}</p>
-                  <div class="portfolio-stats">
-                    <span>Performance: <strong>${escapeHtml(metric)}</strong></span>
-                  </div>
-                </div>
-              </article>
-            `;
-          }).join('');
-
-          // Re-attach modal trigger clicks
-          document.querySelectorAll('.portfolio-card').forEach(card => {
-            card.addEventListener('click', () => {
-              openModal(card.dataset.title, card.dataset.details);
-            });
-          });
-
-          // Re-apply active category filter
-          const activeFilterBtn = document.querySelector('.filter-btn.active');
-          if (activeFilterBtn) {
-            const filter = activeFilterBtn.dataset.filter;
-            document.querySelectorAll('.portfolio-card').forEach(card => {
-              const cCat = card.dataset.category;
-              if (filter === 'all' || cCat === filter) {
-                card.style.display = 'block';
-              } else {
-                card.style.display = 'none';
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Portfolio sync skipped:', e.message);
-    }
-  }
-
   function escapeHtml(str) {
     return (str || '').replace(/[&<>"']/g, function(m) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
@@ -264,8 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     serviceCheckboxes.forEach(cb => {
       const parentLabel = cb.closest('.check-card');
-      if (cb.checked) {
-        baseSum += parseInt(cb.value, 10) || 0;
+      if (cb.checked && !cb.disabled) {
+        baseSum += parseFloat(cb.value) || 0;
         selectedCount++;
         if (parentLabel) parentLabel.classList.add('checked');
       } else {
@@ -281,14 +253,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dynamic Multiplier for page scope beyond base 5 pages
     let pageCost = 0;
     if (pages > 5) {
-      const perPageRate = activePricing.perPage || 1800;
+      const perPageRate = typeof activePricing.perPage === 'number' ? activePricing.perPage : (parseFloat(String(activePricing.perPage).replace(/[^0-9.]/g, '')) || 1800);
       pageCost = (pages - 5) * perPageRate;
     }
 
-    const minBase = activePricing.baseMin || 12000;
+    const minBase = typeof activePricing.baseMin === 'number' ? activePricing.baseMin : (parseFloat(String(activePricing.baseMin).replace(/[^0-9.]/g, '')) || 12000);
     const totalEstimate = Math.max(minBase, baseSum + pageCost);
     if (estimatedPriceDisplay) {
-      estimatedPriceDisplay.textContent = `₹${totalEstimate.toLocaleString('en-IN')}`;
+      estimatedPriceDisplay.textContent = `₹${Math.round(totalEstimate).toLocaleString('en-IN')}`;
     }
 
     // Calculate timeline
@@ -310,7 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
   calculateQuote();
   syncPricingFromApi();
   syncAgencyFromApi();
-  syncPortfolioFromApi();
 
   // "Lock In This Quote" transfers details to contact form
   if (lockInQuoteBtn && clientMessage) {

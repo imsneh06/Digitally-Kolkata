@@ -60,11 +60,33 @@ module.exports = async function handler(req, res) {
 
       // Action: Configure Upstash / Vercel KV REST URL and Token
       if (body.action === 'configureKv') {
-        const kvUrl = (body.kvUrl || '').trim();
+        let kvUrl = (body.kvUrl || '').trim();
         const kvToken = (body.kvToken || '').trim();
 
+        if (!kvUrl && !kvToken) {
+          // Clearing configuration
+          store.cloudConfig = { kvUrl: '', kvToken: '' };
+          await saveStore(store);
+          return sendJson(res, 200, {
+            success: true,
+            message: 'Cloud KV configuration cleared. Operating in serverless local mode.',
+            hasCloudKv: false
+          });
+        }
+
         if (kvUrl && !kvToken) {
-          return sendJson(res, 400, { error: 'KV Token is required when providing KV URL' });
+          return sendJson(res, 400, { error: 'KV Token is required when providing KV REST URL' });
+        }
+
+        // Auto-prefix https:// if user provided domain like "xxx.upstash.io"
+        if (!/^https?:\/\//i.test(kvUrl)) {
+          if (kvUrl.includes('.')) {
+            kvUrl = 'https://' + kvUrl;
+          } else {
+            return sendJson(res, 400, {
+              error: 'Invalid URL. Please enter a valid Upstash Redis or Vercel KV REST URL (e.g. https://your-db.upstash.io). If you do not have Upstash Redis, leave this blank.'
+            });
+          }
         }
 
         // Test connection if provided
@@ -82,12 +104,12 @@ module.exports = async function handler(req, res) {
 
             if (!testRes.ok) {
               return sendJson(res, 400, {
-                error: `Failed to connect to KV. Response status: ${testRes.status}`
+                error: `Failed to connect to KV. Upstash returned status ${testRes.status}. Check your REST Token.`
               });
             }
           } catch (e) {
             return sendJson(res, 400, {
-              error: `Connection test failed: ${e.message}`
+              error: `Connection test failed: ${e.message}. Please ensure the URL starts with https://`
             });
           }
         }

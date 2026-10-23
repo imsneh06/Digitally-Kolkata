@@ -32,15 +32,26 @@ module.exports = async function handler(req, res) {
       }
       const current = store.pricing || {};
 
+      function parseRateValue(val, fallback) {
+        if (val === undefined || val === null) return fallback;
+        if (typeof val === 'number') return val;
+        const str = String(val).trim();
+        if (!str) return fallback;
+        if (/^\d+$/.test(str.replace(/,/g, ''))) {
+          return parseInt(str.replace(/,/g, ''), 10);
+        }
+        return str;
+      }
+
       store.pricing = {
-        branding: body.branding !== undefined ? parseInt(body.branding, 10) || current.branding || 15000 : current.branding || 15000,
-        uiux: body.uiux !== undefined ? parseInt(body.uiux, 10) || current.uiux || 20000 : current.uiux || 20000,
-        webdev: body.webdev !== undefined ? parseInt(body.webdev, 10) || current.webdev || 28000 : current.webdev || 28000,
-        seo: body.seo !== undefined ? parseInt(body.seo, 10) || current.seo || 12000 : current.seo || 12000,
-        photo: body.photo !== undefined ? parseInt(body.photo, 10) || current.photo || 18000 : current.photo || 18000,
-        social: body.social !== undefined ? parseInt(body.social, 10) || current.social || 15000 : current.social || 15000,
-        perPage: body.perPage !== undefined ? parseInt(body.perPage, 10) || current.perPage || 1800 : current.perPage || 1800,
-        baseMin: body.baseMin !== undefined ? parseInt(body.baseMin, 10) || current.baseMin || 12000 : current.baseMin || 12000
+        branding: parseRateValue(body.branding, current.branding !== undefined ? current.branding : 15000),
+        uiux: parseRateValue(body.uiux, current.uiux !== undefined ? current.uiux : 20000),
+        webdev: parseRateValue(body.webdev, current.webdev !== undefined ? current.webdev : 28000),
+        seo: parseRateValue(body.seo, current.seo !== undefined ? current.seo : 12000),
+        photo: parseRateValue(body.photo, current.photo !== undefined ? current.photo : 18000),
+        social: parseRateValue(body.social, current.social !== undefined ? current.social : 15000),
+        perPage: parseRateValue(body.perPage, current.perPage !== undefined ? current.perPage : 1800),
+        baseMin: parseRateValue(body.baseMin, current.baseMin !== undefined ? current.baseMin : 12000)
       };
 
       await saveStore(store);
