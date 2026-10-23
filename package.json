@@ -4,8 +4,8 @@
   "description": "Digitally Kolkata - Premier Creative & Digital Marketing Agency",
   "main": "index.html",
   "scripts": {
-    "dev": "npx serve -l 3000 .",
-    "start": "npx serve -l 3000 ."
+    "dev": "node server.js",
+    "start": "node server.js"
   },
   "keywords": [
     "digital marketing",

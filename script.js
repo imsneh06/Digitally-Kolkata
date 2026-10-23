@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. Interactive Project Cost & Timeline Calculator
+  // 4. Dynamic Pricing Engine & Project Cost Calculator
   const serviceCheckboxes = document.querySelectorAll('.service-calc');
   const pageRange = document.getElementById('pageRange');
   const pageCountDisplay = document.getElementById('pageCountDisplay');
@@ -97,6 +97,167 @@ document.addEventListener('DOMContentLoaded', () => {
   const lockInQuoteBtn = document.getElementById('lockInQuoteBtn');
   const clientMessage = document.getElementById('clientMessage');
 
+  // Active pricing config (defaults with live API sync)
+  let activePricing = {
+    branding: 15000,
+    uiux: 20000,
+    webdev: 28000,
+    seo: 12000,
+    photo: 18000,
+    social: 15000,
+    perPage: 1800,
+    baseMin: 12000
+  };
+
+  // Agency Contact Details (defaults with live API sync)
+  let agencyContact = {
+    wa: '919073277478',
+    email: 'duttarayan3@gmail.com',
+    phone: '+91 90732 77478'
+  };
+
+  async function syncPricingFromApi() {
+    try {
+      const res = await fetch('/api/pricing');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.pricing) {
+          activePricing = { ...activePricing, ...data.pricing };
+
+          // Map service values to checkbox inputs
+          serviceCheckboxes.forEach(cb => {
+            const labelSpan = cb.nextElementSibling ? cb.nextElementSibling.textContent.trim().toLowerCase() : '';
+            if (labelSpan.includes('web')) cb.value = activePricing.webdev;
+            else if (labelSpan.includes('brand')) cb.value = activePricing.branding;
+            else if (labelSpan.includes('ui/ux') || labelSpan.includes('design')) cb.value = activePricing.uiux;
+            else if (labelSpan.includes('seo') || labelSpan.includes('analytics')) cb.value = activePricing.seo;
+            else if (labelSpan.includes('photo') || labelSpan.includes('shoot')) cb.value = activePricing.photo;
+            else if (labelSpan.includes('social') || labelSpan.includes('marketing')) cb.value = activePricing.social;
+          });
+
+          calculateQuote();
+        }
+      }
+    } catch (e) {
+      console.warn('Live pricing sync skipped, running on default rates:', e.message);
+    }
+  }
+
+  async function syncAgencyFromApi() {
+    try {
+      const res = await fetch('/api/agency');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.agency) {
+          agencyContact = { ...agencyContact, ...data.agency };
+
+          // 1. Update WhatsApp links across the page
+          if (agencyContact.wa) {
+            const cleanWa = agencyContact.wa.replace(/[^0-9]/g, '');
+            document.querySelectorAll('a[href*="wa.me"]').forEach(a => {
+              const currentHref = a.getAttribute('href') || '';
+              const urlParts = currentHref.split('?');
+              const queryPart = urlParts[1] ? `?${urlParts[1]}` : '';
+              a.setAttribute('href', `https://wa.me/${cleanWa}${queryPart}`);
+            });
+          }
+
+          // 2. Update Email links and displayed text
+          if (agencyContact.email) {
+            document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
+              a.setAttribute('href', `mailto:${agencyContact.email}`);
+              if (a.textContent.includes('@')) {
+                a.textContent = agencyContact.email;
+              }
+            });
+          }
+
+          // 3. Update Phone numbers displayed
+          if (agencyContact.phone) {
+            document.querySelectorAll('.info-val, .footer-bottom, .contact-info').forEach(el => {
+              if (el.textContent.includes('+91 90732') || el.textContent.includes('90732 77478')) {
+                el.innerHTML = el.innerHTML.replace(/\+91\s*90732\s*77478/g, agencyContact.phone);
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Agency profile sync skipped:', e.message);
+    }
+  }
+
+  async function syncPortfolioFromApi() {
+    const portfolioGrid = document.getElementById('portfolioGrid');
+    if (!portfolioGrid) return;
+
+    try {
+      const res = await fetch('/api/portfolio');
+      if (res.ok) {
+        const data = await res.json();
+        const projects = (data.portfolio || []).filter(p => p.active !== false);
+
+        if (projects.length > 0) {
+          portfolioGrid.innerHTML = projects.map(p => {
+            const cat = p.category || 'campaign';
+            const catLabel = p.categoryLabel || cat.toUpperCase();
+            const metric = p.metric || 'Verified Impact';
+            const desc = p.description || '';
+            const title = p.title || 'Client Case Study';
+
+            return `
+              <article class="portfolio-card" data-category="${escapeHtml(cat)}" data-title="${escapeHtml(title)}" data-details="${escapeHtml(desc)}">
+                <div class="portfolio-img-wrap">
+                  <picture>
+                    <source srcset="assets/portfolio/walplast.webp" type="image/webp">
+                    <img src="assets/portfolio/walplast.jpg" alt="${escapeHtml(title)}" class="portfolio-img" width="400" height="240" loading="lazy" decoding="async">
+                  </picture>
+                  <span class="portfolio-tag-badge">${escapeHtml(catLabel)}</span>
+                </div>
+                <div class="portfolio-content">
+                  <h3 class="portfolio-title">${escapeHtml(title)}</h3>
+                  <p class="portfolio-desc">${escapeHtml(desc)}</p>
+                  <div class="portfolio-stats">
+                    <span>Performance: <strong>${escapeHtml(metric)}</strong></span>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join('');
+
+          // Re-attach modal trigger clicks
+          document.querySelectorAll('.portfolio-card').forEach(card => {
+            card.addEventListener('click', () => {
+              openModal(card.dataset.title, card.dataset.details);
+            });
+          });
+
+          // Re-apply active category filter
+          const activeFilterBtn = document.querySelector('.filter-btn.active');
+          if (activeFilterBtn) {
+            const filter = activeFilterBtn.dataset.filter;
+            document.querySelectorAll('.portfolio-card').forEach(card => {
+              const cCat = card.dataset.category;
+              if (filter === 'all' || cCat === filter) {
+                card.style.display = 'block';
+              } else {
+                card.style.display = 'none';
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Portfolio sync skipped:', e.message);
+    }
+  }
+
+  function escapeHtml(str) {
+    return (str || '').replace(/[&<>"']/g, function(m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
+    });
+  }
+
   function calculateQuote() {
     let baseSum = 0;
     let selectedCount = 0;
@@ -104,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     serviceCheckboxes.forEach(cb => {
       const parentLabel = cb.closest('.check-card');
       if (cb.checked) {
-        baseSum += parseInt(cb.value, 10);
+        baseSum += parseInt(cb.value, 10) || 0;
         selectedCount++;
         if (parentLabel) parentLabel.classList.add('checked');
       } else {
@@ -112,17 +273,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    const pages = parseInt(pageRange.value, 10);
-    pageCountDisplay.textContent = pages === 1 ? '1 Page (Landing)' : `${pages} Pages`;
-
-    // Multiplier for page scope beyond base 5 pages
-    let pageCost = 0;
-    if (pages > 5) {
-      pageCost = (pages - 5) * 1800;
+    const pages = pageRange ? parseInt(pageRange.value, 10) : 5;
+    if (pageCountDisplay) {
+      pageCountDisplay.textContent = pages === 1 ? '1 Page (Landing)' : `${pages} Pages`;
     }
 
-    const totalEstimate = Math.max(12000, baseSum + pageCost);
-    estimatedPriceDisplay.textContent = `₹${totalEstimate.toLocaleString('en-IN')}`;
+    // Dynamic Multiplier for page scope beyond base 5 pages
+    let pageCost = 0;
+    if (pages > 5) {
+      const perPageRate = activePricing.perPage || 1800;
+      pageCost = (pages - 5) * perPageRate;
+    }
+
+    const minBase = activePricing.baseMin || 12000;
+    const totalEstimate = Math.max(minBase, baseSum + pageCost);
+    if (estimatedPriceDisplay) {
+      estimatedPriceDisplay.textContent = `₹${totalEstimate.toLocaleString('en-IN')}`;
+    }
 
     // Calculate timeline
     let timelineWeeks = '1 to 2 Weeks';
@@ -131,25 +298,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (pages > 7 || selectedCount >= 2) {
       timelineWeeks = '2 to 3 Weeks';
     }
-    estimatedTimelineDisplay.textContent = timelineWeeks;
+    if (estimatedTimelineDisplay) {
+      estimatedTimelineDisplay.textContent = timelineWeeks;
+    }
   }
 
   serviceCheckboxes.forEach(cb => cb.addEventListener('change', calculateQuote));
   if (pageRange) pageRange.addEventListener('input', calculateQuote);
 
-  // Trigger initial calculation
+  // Initialize Calculator & Sync from API
   calculateQuote();
+  syncPricingFromApi();
+  syncAgencyFromApi();
+  syncPortfolioFromApi();
 
   // "Lock In This Quote" transfers details to contact form
   if (lockInQuoteBtn && clientMessage) {
     lockInQuoteBtn.addEventListener('click', () => {
-      const price = estimatedPriceDisplay.textContent;
-      const timeline = estimatedTimelineDisplay.textContent;
-      const pages = pageRange.value;
+      const price = estimatedPriceDisplay ? estimatedPriceDisplay.textContent : '₹35,000';
+      const timeline = estimatedTimelineDisplay ? estimatedTimelineDisplay.textContent : '2 to 3 Weeks';
+      const pages = pageRange ? pageRange.value : 5;
 
       const selectedServices = Array.from(serviceCheckboxes)
         .filter(c => c.checked)
-        .map(c => c.nextElementSibling.textContent.trim())
+        .map(c => c.nextElementSibling ? c.nextElementSibling.textContent.trim() : '')
+        .filter(Boolean)
         .join(', ');
 
       clientMessage.value = `I generated an instant estimate of ${price} (${timeline}) for ~${pages} pages.\nServices chosen: ${selectedServices}.\nI would like to schedule a discovery call to review my project.`;
@@ -209,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 6. Lead Contact Form Processing & WhatsApp Action
   const leadForm = document.getElementById('leadContactForm');
+  const submitContactBtn = document.getElementById('submitContactBtn');
   const toast = document.getElementById('toastNotice');
   const toastMessage = document.getElementById('toastMessage');
 
@@ -222,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (leadForm) {
-    leadForm.addEventListener('submit', (e) => {
+    leadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const name = document.getElementById('clientName').value.trim();
@@ -231,28 +405,60 @@ document.addEventListener('DOMContentLoaded', () => {
       const interest = document.getElementById('projectInterest').value;
       const message = document.getElementById('clientMessage').value.trim();
 
-      // Show instant confirmation
-      showToast(`Thank you, ${name}! Your project brief has been recorded. Redirecting to WhatsApp...`);
-
-      // Save lead to localStorage for Admin Portal
-      try {
-        const existingLeads = JSON.parse(localStorage.getItem('dk_leads') || '[]');
-        const newLead = {
-          id: 'lead_' + Date.now(),
-          name,
-          email,
-          phone: phone || 'Not provided',
-          interest,
-          message,
-          timestamp: new Date().toISOString()
-        };
-        existingLeads.unshift(newLead);
-        localStorage.setItem('dk_leads', JSON.stringify(existingLeads));
-      } catch (err) {
-        console.error('Failed to save lead locally:', err);
+      // Loading state on button
+      const originalBtnHtml = submitContactBtn ? submitContactBtn.innerHTML : '';
+      if (submitContactBtn) {
+        submitContactBtn.disabled = true;
+        submitContactBtn.innerHTML = `<span>Recording Inquiry...</span>`;
       }
 
-      // WhatsApp formatted message payload
+      showToast(`Thank you, ${name}! Recording your inquiry...`);
+
+      const leadPayload = {
+        name,
+        email,
+        phone: phone || 'Not provided',
+        interest,
+        message
+      };
+
+      // 1. Post to Serverless Backend API (POST /api/leads)
+      let postSuccess = false;
+      try {
+        const response = await fetch('/api/leads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(leadPayload)
+        });
+
+        if (response.ok) {
+          postSuccess = true;
+          showToast(`Inquiry captured! Redirecting to official WhatsApp...`);
+        } else {
+          const errData = await response.json();
+          console.warn('API submission notice:', errData);
+        }
+      } catch (networkErr) {
+        console.warn('Network notice posting lead to API, saving client backup:', networkErr);
+      }
+
+      // 2. Client-side localStorage backup to guarantee zero lead loss
+      try {
+        const localLeads = JSON.parse(localStorage.getItem('dk_leads') || '[]');
+        localLeads.unshift({
+          ...leadPayload,
+          id: 'lead_local_' + Date.now(),
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem('dk_leads', JSON.stringify(localLeads));
+      } catch (storageErr) {
+        console.error('Local backup save failed:', storageErr);
+      }
+
+      // 3. Open WhatsApp formatted lead chat
+      const targetWa = (agencyContact.wa || '919073277478').replace(/[^0-9]/g, '');
       const waText = encodeURIComponent(
         `*New Inquiry - Digitally Kolkata*\n` +
         `👤 Name: ${name}\n` +
@@ -262,10 +468,13 @@ document.addEventListener('DOMContentLoaded', () => {
         `📝 Details: ${message}`
       );
 
-      // Open WhatsApp after brief delay for smooth UX
       setTimeout(() => {
-        window.open(`https://wa.me/919073277478?text=${waText}`, '_blank');
-      }, 1200);
+        window.open(`https://wa.me/${targetWa}?text=${waText}`, '_blank');
+        if (submitContactBtn) {
+          submitContactBtn.disabled = false;
+          submitContactBtn.innerHTML = originalBtnHtml;
+        }
+      }, 1000);
 
       leadForm.reset();
       calculateQuote();

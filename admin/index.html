@@ -135,6 +135,7 @@
               <p>Clients who contacted you or used the interactive project calculator.</p>
             </div>
             <div class="box-actions">
+              <button id="refreshLeadsBtn" class="btn-refresh">🔄 Refresh</button>
               <button id="exportCsvBtn" class="btn-secondary-sm">📥 Export to CSV</button>
               <button id="clearLeadsBtn" class="btn-danger-sm">🗑 Clear All</button>
             </div>
@@ -149,6 +150,7 @@
                   <th>Contact Info</th>
                   <th>Service Selected</th>
                   <th>Brief / Estimate</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -168,7 +170,10 @@
               <h2>Service Base Rates (₹ INR)</h2>
               <p>Configure pricing used by the interactive project calculator on your homepage.</p>
             </div>
-            <button id="savePricingBtn" class="btn-primary-sm">💾 Save Rates</button>
+            <div class="box-actions">
+              <button id="resetPricingBtn" class="btn-secondary-sm">↺ Reset Defaults</button>
+              <button id="savePricingBtn" class="btn-primary-sm">💾 Save Rates</button>
+            </div>
           </div>
 
           <form id="pricingForm" class="grid-form">
@@ -215,6 +220,33 @@
                 <input type="number" id="pricePhoto" value="18000">
               </div>
               <p class="card-desc">Commercial studio shoots, e-commerce catalog imagery, video reels.</p>
+            </div>
+
+            <div class="form-card">
+              <h3>🎯 Social Media Marketing</h3>
+              <div class="form-group">
+                <label>Base Price (₹)</label>
+                <input type="number" id="priceSocial" value="15000">
+              </div>
+              <p class="card-desc">Viral reels, ad creative teardowns, multi-channel audience growth.</p>
+            </div>
+
+            <div class="form-card">
+              <h3>📄 Additional Page Rate</h3>
+              <div class="form-group">
+                <label>Price per Page beyond 5 pages (₹)</label>
+                <input type="number" id="pricePerPage" value="1800">
+              </div>
+              <p class="card-desc">Multiplier applied by the page scope slider on the homepage.</p>
+            </div>
+
+            <div class="form-card">
+              <h3>🏷️ Minimum Base Project Price</h3>
+              <div class="form-group">
+                <label>Floor Rate (₹)</label>
+                <input type="number" id="priceBaseMin" value="12000">
+              </div>
+              <p class="card-desc">Minimum quote threshold calculated for any bespoke inquiry.</p>
             </div>
           </form>
         </div>
@@ -274,45 +306,14 @@
         <div class="content-box">
           <div class="box-header">
             <div>
-              <h2>Featured Case Studies</h2>
-              <p>Manage showcased projects, metrics, and categories.</p>
+              <h2>Featured Case Studies & Projects</h2>
+              <p>Manage showcased projects, metrics, and categories dynamically.</p>
             </div>
             <button id="addProjectBtn" class="btn-primary-sm">+ Add Project</button>
           </div>
 
           <div class="portfolio-list" id="portfolioList">
-            <!-- Sample Active Projects -->
-            <div class="portfolio-admin-item">
-              <div class="item-info">
-                <h4>Bengal Silks D2C Platform</h4>
-                <p>E-Commerce, Web Dev, UI/UX • <strong>+340% Mobile Conversions</strong></p>
-              </div>
-              <div class="item-badge">Active on Home</div>
-            </div>
-
-            <div class="portfolio-admin-item">
-              <div class="item-info">
-                <h4>FinVeda Corporate Identity</h4>
-                <p>Branding, Identity, Print • <strong>Full Brand Transformation</strong></p>
-              </div>
-              <div class="item-badge">Active on Home</div>
-            </div>
-
-            <div class="portfolio-admin-item">
-              <div class="item-info">
-                <h4>Kolkata Culinary Festival</h4>
-                <p>Social Media, Photography, Ads • <strong>2.4M Social Impressions</strong></p>
-              </div>
-              <div class="item-badge">Active on Home</div>
-            </div>
-
-            <div class="portfolio-admin-item">
-              <div class="item-info">
-                <h4>UrbanCraft Tech Architecture</h4>
-                <p>Web Development, SEO • <strong>99+ Performance Score</strong></p>
-              </div>
-              <div class="item-badge">Active on Home</div>
-            </div>
+            <!-- Dynamically populated from /api/portfolio -->
           </div>
         </div>
       </section>
@@ -323,46 +324,136 @@
           <div class="box-header">
             <div>
               <h2>Admin Security & Passcode</h2>
-              <p>Change your private dashboard passcode.</p>
+              <p>Change your private dashboard passcode (PUT /api/auth).</p>
             </div>
           </div>
 
           <form id="securityForm" class="security-form">
             <div class="form-group">
               <label>Current Passcode</label>
-              <input type="password" id="currentPasscode" placeholder="Enter current passcode">
+              <input type="password" id="currentPasscode" placeholder="Enter current passcode" required>
             </div>
             <div class="form-group">
               <label>New Passcode</label>
-              <input type="password" id="newPasscode" placeholder="Enter new passcode (minimum 4 characters)">
+              <input type="password" id="newPasscode" placeholder="Enter new passcode (minimum 4 characters)" required>
             </div>
             <button type="submit" class="btn-primary-sm">Update Passcode</button>
           </form>
         </div>
 
+        <!-- CLOUD STORAGE & SYNC (Zero Data Loss) -->
         <div class="content-box mt-4">
           <div class="box-header">
             <div>
-              <h2>Zero InfinityFree / Serverless Architecture</h2>
-              <p>Your platform runs completely independent of shared hosting servers.</p>
+              <h2>Cloud Database & Distributed Persistence</h2>
+              <p>Connect Upstash Redis or Vercel KV for 100% free permanent cloud data storage across all servers and visitors.</p>
+            </div>
+            <span id="syncEngineBadge" class="item-badge">Checking sync...</span>
+          </div>
+
+          <form id="kvConfigForm" class="settings-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Upstash Redis / Vercel KV REST URL</label>
+                <input type="text" id="kvUrlInput" placeholder="https://your-database.upstash.io">
+                <small class="hint">From your free Upstash Console or Vercel Dashboard Storage tab.</small>
+              </div>
+              <div class="form-group">
+                <label>KV REST Token</label>
+                <input type="password" id="kvTokenInput" placeholder="AXXXXXXXXX...">
+                <small class="hint">The REST Read/Write bearer token.</small>
+              </div>
+            </div>
+            <button type="submit" id="saveKvBtn" class="btn-primary-sm">Connect & Verify Cloud KV</button>
+          </form>
+
+          <div class="box-header mt-4" style="border-top: 1px solid var(--border-color); padding-top: 18px; margin-top: 20px;">
+            <div>
+              <h3>Database Backup & Recovery</h3>
+              <p>Download a complete snapshot of all inquiries, pricing, and settings as JSON or restore anytime.</p>
+            </div>
+            <div class="box-actions">
+              <button id="exportBackupBtn" class="btn-secondary-sm">📥 Export Backup (JSON)</button>
+              <label class="btn-secondary-sm" style="cursor: pointer; margin-left: 8px;">
+                📤 Restore Backup
+                <input type="file" id="importBackupInput" accept=".json" style="display: none;">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-box mt-4">
+          <div class="box-header">
+            <div>
+              <h2>Serverless Engine Architecture</h2>
+              <p>Your platform operates with serverless API functions supporting GET, POST, PUT, and DELETE.</p>
             </div>
           </div>
           <div class="serverless-info">
             <div class="info-row">
-              <strong>Hosting:</strong> <span>Vercel Global Edge (Zero Server Maintenance)</span>
+              <strong>Hosting & APIs:</strong> <span>Vercel Global Edge (Node.js Serverless Functions)</span>
             </div>
             <div class="info-row">
-              <strong>Source Control:</strong> <span>GitHub Repository (<code>imsneh06/Digitally-Kolkata</code>)</span>
+              <strong>Active Endpoints:</strong> <span><code>/api/leads</code>, <code>/api/pricing</code>, <code>/api/agency</code>, <code>/api/portfolio</code>, <code>/api/auth</code>, <code>/api/sync</code></span>
             </div>
             <div class="info-row">
-              <strong>Speed:</strong> <span>~180ms Response Time (India edge node <code>bom1</code>)</span>
+              <strong>HTTP Verbs Tested:</strong> <span>GET (fetch), POST (create), PUT (update), DELETE (remove)</span>
             </div>
             <div class="info-row">
-              <strong>Cost:</strong> <span>₹0 / Free Forever (Unlimited SSL & Bandwidth)</span>
+              <strong>Source Repository:</strong> <span>GitHub (<code>imsneh06/Digitally-Kolkata</code>)</span>
             </div>
           </div>
         </div>
       </section>
+    </main>
+  </div>
+
+  <!-- PORTFOLIO MODAL (Add / Edit Project) -->
+  <div id="portfolioModalBackdrop" class="admin-modal-backdrop">
+    <div class="admin-modal-box">
+      <div class="admin-modal-header">
+        <h3 id="portfolioModalTitle">Add New Portfolio Project</h3>
+        <button type="button" id="closePortfolioModalBtn" class="admin-modal-close">✕</button>
+      </div>
+      <form id="portfolioModalForm">
+        <input type="hidden" id="modalProjectId">
+        <div class="form-group">
+          <label>Project Title *</label>
+          <input type="text" id="modalProjectTitle" placeholder="e.g. Kolkata Artisan Handlooms" required class="form-input" style="width: 100%; background: #081013; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #FFF;">
+        </div>
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label>Category Code</label>
+            <select id="modalProjectCategory" style="width: 100%; background: #081013; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #FFF;">
+              <option value="webdev">Custom Web Dev</option>
+              <option value="branding">Brand Identity</option>
+              <option value="creative">Creative & Photography</option>
+              <option value="seo">SEO & Growth</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tags / Subtitle</label>
+            <input type="text" id="modalProjectCategoryLabel" placeholder="e.g. E-Commerce, Web Dev, UI/UX" style="width: 100%; background: #081013; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #FFF;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Key Metric / Highlight</label>
+          <input type="text" id="modalProjectMetric" placeholder="e.g. +340% Mobile Conversions" style="width: 100%; background: #081013; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #FFF;">
+        </div>
+        <div class="form-group">
+          <label>Deliverables Description</label>
+          <textarea id="modalProjectDesc" rows="3" placeholder="Brief outline of architecture, creative direction, or impact..." style="width: 100%; background: #081013; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #FFF; resize: vertical;"></textarea>
+        </div>
+        <div class="form-group-checkbox" style="margin-top: 10px;">
+          <label><input type="checkbox" id="modalProjectActive" checked> Display active on live website</label>
+        </div>
+        <div class="admin-modal-footer">
+          <button type="button" id="cancelPortfolioModalBtn" class="btn-secondary-sm">Cancel</button>
+          <button type="submit" id="saveProjectModalBtn" class="btn-primary-sm">💾 Save Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
     </main>
   </div>
 

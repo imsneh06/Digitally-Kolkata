@@ -1,0 +1,64 @@
+{
+  "adminPass": "admin",
+  "pricing": {
+    "branding": 18000,
+    "uiux": 20000,
+    "webdev": 35000,
+    "seo": 14000,
+    "photo": 18000,
+    "social": 15000,
+    "perPage": 1800,
+    "baseMin": 12000
+  },
+  "agency": {
+    "name": "Digitally Kolkata",
+    "tagline": "High-Impact Digital Marketing & Web Engineering",
+    "wa": "919073277478",
+    "email": "duttarayan3@gmail.com",
+    "phone": "+91 90732 77478",
+    "address": "Salt Lake Sector V, Kolkata, West Bengal 700091"
+  },
+  "portfolio": [
+    {
+      "id": "bengal-silks",
+      "title": "Bengal Silks D2C Platform",
+      "category": "webdev",
+      "categoryLabel": "E-Commerce, Web Dev, UI/UX",
+      "metric": "+340% Mobile Conversions",
+      "description": "Engineered headless architecture with razor-sharp 0.4s load speed, intuitive vernacular filtering, and high-conversion checkout funnel.",
+      "active": true
+    },
+    {
+      "id": "finveda",
+      "title": "FinVeda Corporate Identity",
+      "category": "branding",
+      "categoryLabel": "Branding, Identity, Print",
+      "metric": "Full Brand Transformation",
+      "description": "Bespoke financial services branding, modern Bengali typography adaptation, visual style guides, and institutional trust markers.",
+      "active": true
+    },
+    {
+      "id": "kolkata-culinary",
+      "title": "Kolkata Culinary Festival",
+      "category": "creative",
+      "categoryLabel": "Social Media, Photography, Ads",
+      "metric": "2.4M Social Impressions",
+      "description": "Multi-channel social campaign, mouthwatering visual food photography, hyper-local influencer engagement, and live viral reels.",
+      "active": true
+    },
+    {
+      "id": "urbancraft",
+      "title": "UrbanCraft Tech Architecture",
+      "category": "webdev",
+      "categoryLabel": "Web Development, SEO",
+      "metric": "99+ Performance Score",
+      "description": "Enterprise SaaS landing page architecture with 100/100 Core Web Vitals, organic search domination, and interactive 3D visual showcase.",
+      "active": true
+    }
+  ],
+  "leads": [],
+  "cloudConfig": {
+    "kvUrl": "",
+    "kvToken": ""
+  }
+}
