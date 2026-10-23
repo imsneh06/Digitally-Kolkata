@@ -42,14 +42,33 @@
 
   <!-- MAIN ADMIN APP -->
   <div id="adminApp" class="admin-layout" style="display: none;">
+    <!-- MOBILE TOP BAR (Only visible on screens <= 768px) -->
+    <header class="admin-mobile-bar">
+      <div class="mobile-brand-title">
+        <button id="adminMobileToggle" class="mobile-toggle-btn" aria-label="Open Navigation">☰</button>
+        <img src="/assets/logo.png" alt="DK" class="mobile-logo-img">
+        <div class="mobile-title-wrap">
+          <span class="mobile-title-main">Digitally Kolkata</span>
+          <span class="mobile-title-sub">Admin Console</span>
+        </div>
+      </div>
+      <div class="mobile-bar-actions">
+        <a href="../" target="_blank" class="mobile-live-btn" title="Visit Live Site">🌐 Live</a>
+      </div>
+    </header>
+
+    <!-- BACKDROP FOR MOBILE DRAWER -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
     <!-- SIDEBAR -->
-    <aside class="admin-sidebar">
+    <aside id="adminSidebar" class="admin-sidebar">
       <div class="sidebar-brand">
         <img src="/assets/logo.png" alt="DK" class="sidebar-logo">
         <div class="brand-text">
           <h3>Digitally Kolkata</h3>
           <span class="badge-online">● Live on Vercel</span>
         </div>
+        <button id="closeSidebarBtn" class="close-sidebar-btn" aria-label="Close Navigation">✕</button>
       </div>
 
       <nav class="sidebar-nav">

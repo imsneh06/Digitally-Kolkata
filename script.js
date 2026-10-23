@@ -59,6 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileToggle.textContent = '☰';
       });
     });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (navLinksContainer.classList.contains('active') && !navLinksContainer.contains(e.target) && !mobileToggle.contains(e.target)) {
+        navLinksContainer.classList.remove('active');
+        mobileToggle.textContent = '☰';
+      }
+    });
   }
 
   // 3. Portfolio Category Filtering

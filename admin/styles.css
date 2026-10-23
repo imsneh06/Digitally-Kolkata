@@ -277,6 +277,109 @@ button {
 /* ==========================================================================
    LAYOUT
    ========================================================================== */
+.admin-mobile-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+}
+
+.mobile-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: #FFF;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.mobile-logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-gold);
+}
+
+.mobile-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-title-main {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFF;
+  line-height: 1.2;
+}
+
+.mobile-title-sub {
+  font-size: 10px;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.mobile-live-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: #FFF;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1999;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+}
+
+.close-sidebar-btn {
+  display: none;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.close-sidebar-btn:hover {
+  color: #FFF;
+}
+
 .admin-layout {
   display: flex;
   min-height: 100vh;
@@ -293,6 +396,8 @@ button {
   top: 0;
   bottom: 0;
   left: 0;
+  z-index: 2000;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-brand {
@@ -302,6 +407,7 @@ button {
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 24px;
+  position: relative;
 }
 
 .sidebar-logo {
@@ -760,21 +866,262 @@ button {
   opacity: 1;
 }
 
-/* RESPONSIVE */
-@media (max-width: 900px) {
+/* ==========================================================================
+   RESPONSIVE DESIGN SYSTEM FOR ADMIN DASHBOARD
+   ========================================================================== */
+
+/* Tablets (max-width: 1024px) */
+@media (max-width: 1024px) {
   .admin-sidebar {
-    width: 70px;
-    padding: 16px 8px;
-  }
-  .brand-text, .nav-item span:not(.nav-icon), .sidebar-footer {
-    display: none;
+    width: 220px;
+    padding: 20px 12px;
   }
   .admin-main {
-    margin-left: 70px;
-    padding: 20px;
+    margin-left: 220px;
+    padding: 24px 20px;
   }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile Devices & Phones (max-width: 768px) */
+@media (max-width: 768px) {
+  .admin-layout {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .admin-mobile-bar {
+    display: flex;
+  }
+
+  .close-sidebar-btn {
+    display: block;
+  }
+
+  /* Slide-in Mobile Drawer */
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 86vw;
+    z-index: 2500;
+    transform: translateX(-100%);
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.85);
+    padding: 20px 16px;
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Keep labels visible inside drawer */
+  .brand-text,
+  .nav-item span,
+  .sidebar-footer {
+    display: block !important;
+  }
+
+  .nav-item {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .admin-main {
+    margin-left: 0;
+    width: 100%;
+    padding: 18px 14px;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+  }
+
+  .header-left h1 {
+    font-size: 20px;
+    line-height: 1.25;
+  }
+
+  .header-left p {
+    font-size: 13px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .stat-card {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .stat-icon-wrap {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .stat-number {
+    font-size: 16px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  /* Content Box & Actions */
+  .content-box {
+    padding: 18px 14px;
+    border-radius: 10px;
+  }
+
+  .box-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .box-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .box-actions button,
+  .box-actions label {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Leads Table Scrollability */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 6px;
+  }
+
+  .leads-table th,
+  .leads-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .leads-table th {
+    white-space: nowrap;
+  }
+
+  .lead-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Forms & Grids */
+  .grid-form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-card {
+    padding: 16px 14px;
+  }
+
+  .form-card input {
+    font-size: 16px; /* Avoid mobile auto-zoom */
+  }
+
   .settings-form .form-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .settings-form input {
+    font-size: 16px;
+  }
+
+  .portfolio-admin-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .serverless-info .info-row {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  .admin-modal-box {
+    max-width: 95vw;
+    padding: 18px 14px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .login-card {
+    padding: 28px 18px;
+    max-width: 92vw;
+  }
+
+  .admin-toast {
+    left: 14px;
+    right: 14px;
+    bottom: 18px;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* Compact Smartphones (max-width: 420px) */
+@media (max-width: 420px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 10px 8px;
+  }
+
+  .stat-icon-wrap {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .stat-number {
+    font-size: 14px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  .login-brand h2 {
+    font-size: 20px;
   }
 }
 

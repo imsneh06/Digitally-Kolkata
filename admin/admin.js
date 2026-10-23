@@ -136,9 +136,32 @@ document.addEventListener('DOMContentLoaded', () => {
     'tab-settings': { title: 'Security & Infrastructure', subtitle: 'Manage your admin credentials, database sync, and serverless health.' }
   };
 
+  // Mobile Sidebar Drawer
+  const adminMobileToggle = document.getElementById('adminMobileToggle');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+  const adminSidebar = document.getElementById('adminSidebar');
+
+  function openSidebar() {
+    if (adminSidebar) adminSidebar.classList.add('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    if (adminSidebar) adminSidebar.classList.remove('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  if (adminMobileToggle) adminMobileToggle.addEventListener('click', openSidebar);
+  if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeSidebar);
+  if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeSidebar);
+
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
+      closeSidebar();
       const targetTab = item.dataset.tab;
       navItems.forEach(n => n.classList.remove('active'));
       tabPanes.forEach(t => t.classList.remove('active'));
